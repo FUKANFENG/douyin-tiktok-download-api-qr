@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 # Build the console in Docker; the host needs neither Node nor Python.
-FROM node:24.14.1-alpine AS console
+FROM node:26.12.1-alpine AS console
 WORKDIR /build
 COPY web/package.json web/package-lock.json ./
 RUN npm ci --no-audit --no-fund
