@@ -1,0 +1,18 @@
+# syntax=docker/dockerfile:1
+# Build the console in Docker; the host needs neither Node nor Python.
+FROM node:24.14.1-alpine AS console
+WORKDIR /build
+COPY web/package.json web/package-lock.json ./
+RUN npm ci --no-audit --no-fund
+COPY web/ ./
+RUN npm run build
+
+# The extension uses the upstream 5.1.7 dependency set without changing it.
+FROM evil0ctal/douyin_tiktok_download_api:5.1.7
+COPY --chown=root:root src/dtk /app/local-src/dtk
+COPY --from=console --chown=root:root /build/dist /app/web/dist
+COPY --chown=root:root LICENSE NOTICE /app/
+ENV PYTHONPATH=/app/local-src
+LABEL org.opencontainers.image.title="DTK QR Edition" \
+      org.opencontainers.image.source="https://github.com/FUKANFENG/douyin-tiktok-download-api-qr" \
+      org.opencontainers.image.licenses="Apache-2.0"

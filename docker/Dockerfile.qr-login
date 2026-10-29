@@ -1,0 +1,35 @@
+# syntax=docker/dockerfile:1
+FROM python:3.12.13-slim-bookworm AS deps
+COPY --from=ghcr.io/astral-sh/uv:0.9.18 /uv /usr/local/bin/uv
+WORKDIR /app
+ENV UV_LINK_MODE=copy UV_PYTHON_DOWNLOADS=never UV_PROJECT_ENVIRONMENT=/app/.venv \
+    PLAYWRIGHT_BROWSERS_PATH=/ms-playwright UV_HTTP_TIMEOUT=120
+COPY services/qr-login/pyproject.toml services/qr-login/uv.lock ./
+RUN --mount=type=cache,target=/root/.cache/uv uv sync --frozen --no-dev --no-install-project
+
+FROM python:3.12.13-slim-bookworm
+WORKDIR /app
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+COPY --from=deps /app/.venv /app/.venv
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
+    rm -f /etc/apt/apt.conf.d/docker-clean \
+    && echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80-retries \
+    && sed -i 's|http://deb.debian.org|https://deb.debian.org|g' /etc/apt/sources.list.d/debian.sources \
+    && /app/.venv/bin/python -m playwright install --with-deps --no-shell chromium
+COPY services/qr-login/cookie_service ./cookie_service
+COPY services/qr-login/static ./static
+COPY LICENSE NOTICE /app/
+RUN useradd --create-home --uid 10001 qruser && install -d -o qruser -g qruser -m 0700 /var/lib/dtk-qr
+ENV PATH=/app/.venv/bin:$PATH \
+    PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 \
+    DY_COOKIE_DATA_DIR=/var/lib/dtk-qr \
+    DY_COOKIE_WEB_UI=false DY_COOKIE_CHROMIUM_SANDBOX=true \
+    PLAYWRIGHT_BROWSERS_PATH=/ms-playwright HOME=/tmp \
+    XDG_CACHE_HOME=/tmp/.cache XDG_CONFIG_HOME=/tmp/.config
+USER qruser
+EXPOSE 8790
+CMD ["python", "-m", "cookie_service", "serve", "--host", "0.0.0.0", "--port", "8790"]
+LABEL org.opencontainers.image.title="DTK QR Login" \
+      org.opencontainers.image.source="https://github.com/FUKANFENG/douyin-tiktok-download-api-qr" \
+      org.opencontainers.image.licenses="Apache-2.0"

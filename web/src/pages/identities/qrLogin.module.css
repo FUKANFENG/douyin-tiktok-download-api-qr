@@ -1,0 +1,44 @@
+.session {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--bg-inset);
+  border-radius: var(--radius);
+  text-align: center;
+}
+
+.qr {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  background: white;
+  padding: var(--space-2);
+}
+
+.account {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.accountText {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.notice {
+  padding: var(--space-3);
+  border-left: 3px solid var(--warning);
+  background: var(--bg-inset);
+}

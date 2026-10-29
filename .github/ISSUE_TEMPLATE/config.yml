@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Docker 安装与维护
+    url: https://github.com/FUKANFENG/douyin-tiktok-download-api-qr/blob/main/documents/qr/DOCKER.md
+    about: 本定制版的安装、备份和升级说明。
+  - name: 上游原项目
+    url: https://github.com/Evil0ctal/Douyin_TikTok_Download_API
+    about: 查看上游项目与原始文档；扫码增强版的问题请在本仓库反馈。

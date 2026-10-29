@@ -1,0 +1,185 @@
+name: ${DTK_QR_PROJECT:-dtk-qr}
+
+x-app-environment: &app-environment
+  DTK_SECRET_KEY: ${DTK_SECRET_KEY:?Run scripts/init_qr.py first}
+  DTK_DATABASE_URL: postgresql+asyncpg://dtk:${POSTGRES_PASSWORD:?Run scripts/init_qr.py first}@postgres:5432/dtk
+  DTK_REDIS_URL: redis://:${REDIS_PASSWORD:?Run scripts/init_qr.py first}@redis:6379/0
+  DTK_DOWNLOADER_URL: http://downloader:9100
+  DTK_DOWNLOADER_TOKEN: ${DTK_DOWNLOADER_TOKEN:?Run scripts/init_qr.py first}
+  DTK_SYSTEM_CHECK_UPDATES: "false"
+  DTK_BACKUP_DIR: /var/lib/dtk/backups
+
+x-app: &app
+  image: dtk-qr-app:5.1.7-qr1
+  build:
+    context: .
+    dockerfile: docker/Dockerfile.qr-app
+  read_only: true
+  tmpfs: ["/tmp:size=128m,mode=1777"]
+  security_opt: [no-new-privileges:true]
+  cap_drop: [ALL]
+  mem_limit: 512m
+  cpus: 2.0
+  pids_limit: 256
+  logging:
+    driver: json-file
+    options: {max-size: "10m", max-file: "3"}
+
+services:
+  postgres:
+    image: timescale/timescaledb-ha:pg17
+    environment:
+      POSTGRES_USER: dtk
+      POSTGRES_DB: dtk
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Run scripts/init_qr.py first}
+      POSTGRES_HOST_AUTH_METHOD: scram-sha-256
+    volumes: [postgres-data:/home/postgres/pgdata/data]
+    networks: [data]
+    mem_limit: 2g
+    pids_limit: 256
+    healthcheck:
+      test: [CMD, pg_isready, -U, dtk, -d, dtk]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+    stop_grace_period: 1m
+
+  redis:
+    image: redis:8-alpine
+    user: redis
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Run scripts/init_qr.py first}
+      REDISCLI_AUTH: ${REDIS_PASSWORD:?Run scripts/init_qr.py first}
+    command: [sh, -ec, 'exec redis-server --requirepass "$$REDIS_PASSWORD" --appendonly yes --maxmemory 192mb --maxmemory-policy noeviction']
+    volumes: [redis-data:/data]
+    networks: [data]
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 256m
+    pids_limit: 128
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  migrate:
+    <<: *app
+    command: [migrate]
+    environment: *app-environment
+    networks: [data]
+    depends_on:
+      postgres: {condition: service_healthy}
+    restart: "no"
+
+  api:
+    <<: *app
+    command: [api]
+    environment:
+      <<: *app-environment
+      DTK_BIND_HOST: 0.0.0.0
+      DTK_BIND_PORT: "8000"
+      DTK_MEDIA_DIR: /var/lib/dtk/media
+      DTK_QR_LOGIN_URL: http://qr-login:8790
+      DTK_QR_LOGIN_TOKEN: ${DTK_QR_LOGIN_TOKEN:?Run scripts/init_qr.py first}
+    ports: ["${DTK_BIND_HOST:-127.0.0.1}:${DTK_BIND_PORT:-8000}:8000"]
+    volumes: [backup-data:/var/lib/dtk/backups, media-data:/var/lib/dtk/media:ro]
+    networks: [data, edge, login]
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+      migrate: {condition: service_completed_successfully}
+      qr-login: {condition: service_healthy}
+      downloader: {condition: service_healthy}
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/readyz',timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    restart: unless-stopped
+    stop_grace_period: 30s
+
+  worker:
+    <<: *app
+    command: [worker]
+    environment: *app-environment
+    volumes: [backup-data:/var/lib/dtk/backups]
+    networks: [data, edge]
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+      migrate: {condition: service_completed_successfully}
+      downloader: {condition: service_healthy}
+    healthcheck:
+      test: [CMD, python, -c, "import os,redis; redis.Redis.from_url(os.environ['DTK_REDIS_URL']).ping()"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+    restart: unless-stopped
+    stop_grace_period: 45s
+
+  downloader:
+    image: evil0ctal/douyin_tiktok_download_api-downloader:5.1.7
+    environment:
+      DTK_DOWNLOADER_BIND: 0.0.0.0:9100
+      DTK_DOWNLOADER_ROOT: /var/lib/dtk/media
+      DTK_DOWNLOADER_TOKEN: ${DTK_DOWNLOADER_TOKEN:?Run scripts/init_qr.py first}
+    volumes: [media-data:/var/lib/dtk/media]
+    networks: [edge]
+    read_only: true
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    mem_limit: 512m
+    pids_limit: 128
+    healthcheck:
+      test: [CMD, /usr/local/bin/downloader, healthcheck]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  qr-login:
+    image: dtk-qr-login:0.2.0
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.qr-login
+    environment:
+      DY_COOKIE_API_TOKEN: ${DTK_QR_LOGIN_TOKEN:?Run scripts/init_qr.py first}
+    volumes: [qr-data:/var/lib/dtk-qr]
+    networks: [login, browser-egress]
+    init: true
+    read_only: true
+    tmpfs: ["/tmp:size=512m,mode=1777"]
+    shm_size: 256m
+    security_opt:
+      - no-new-privileges:true
+      - seccomp=./docker/qr-seccomp.json
+    cap_drop: [ALL]
+    mem_limit: 1536m
+    cpus: 2.0
+    pids_limit: 256
+    healthcheck:
+      test: [CMD, python, -c, "import json,urllib.request; assert json.load(urllib.request.urlopen('http://127.0.0.1:8790/healthz',timeout=3))['browser_available']"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    restart: unless-stopped
+    stop_grace_period: 30s
+
+networks:
+  data: {internal: true}
+  login: {internal: true}
+  edge: {}
+  browser-egress: {}
+
+volumes:
+  postgres-data: {}
+  redis-data: {}
+  media-data: {}
+  backup-data: {}
+  qr-data: {}

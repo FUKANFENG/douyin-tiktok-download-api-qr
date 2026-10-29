@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light" />
+    <title>抖音扫码登录</title>
+    <link rel="stylesheet" href="/static/style.css" />
+    <script src="/static/app.js" defer></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="/">Cookie 本地助手</a
+      ><span class="local-badge">仅本机访问</span>
+    </header>
+    <main>
+      <div class="page-heading">
+        <p class="eyebrow">DOUYIN · 扫码登录</p>
+        <h1>扫一扫，保存你的登录状态。</h1>
+        <p class="intro">
+          用手机抖音确认登录，Cookie 和浏览器信息会自动收集并保存在本机。
+        </p>
+      </div>
+      <div id="notice" class="notice" role="alert" hidden></div>
+      <section class="login-panel" aria-labelledby="login-title">
+        <div class="qr-side">
+          <div class="qr-box" id="qr-box">
+            <img
+              id="qr-image"
+              width="252"
+              height="252"
+              alt="抖音登录二维码"
+              hidden
+            />
+            <div id="qr-placeholder">
+              <div class="qr-symbol" aria-hidden="true">▦</div>
+              <p id="placeholder-text">点击下方按钮获取二维码</p>
+            </div>
+          </div>
+          <button id="start" class="primary">获取登录二维码</button>
+          <div class="secondary-actions">
+            <button id="refresh" hidden>重新获取</button
+            ><button id="cancel" hidden>取消本次扫码</button>
+          </div>
+          <p id="countdown" class="muted countdown"></p>
+        </div>
+        <div class="guide-side">
+          <h2 id="login-title">使用手机抖音扫码</h2>
+          <ol class="steps">
+            <li>获取二维码后，打开手机抖音的扫一扫。</li>
+            <li>扫描二维码，在手机上确认登录。</li>
+            <li>登录信息保存完成后，即可复制或导出。</li>
+          </ol>
+          <label for="account-label"
+            >账号备注 <span class="muted">可选</span></label
+          >
+          <input
+            id="account-label"
+            maxlength="80"
+            placeholder="例如：我的下载账号"
+            autocomplete="off"
+          />
+          <div class="status-box" role="status" aria-live="polite">
+            <span id="status-dot" class="status-dot"></span>
+            <div>
+              <strong id="status-title">准备开始</strong>
+              <p id="status-message">整个过程无需手动打开开发者工具。</p>
+            </div>
+          </div>
+          <form id="verification-form" hidden>
+            <label for="verification-code">短信验证码</label>
+            <div class="code-row">
+              <input
+                id="verification-code"
+                inputmode="numeric"
+                pattern="[0-9]{4,8}"
+                minlength="4"
+                maxlength="8"
+                autocomplete="one-time-code"
+                required
+              /><button type="submit">提交验证码</button>
+            </div>
+          </form>
+          <p class="privacy-note">
+            登录信息会加密保存。到期前 3 天，这里会提示重新扫码。
+          </p>
+        </div>
+      </section>
+      <section class="accounts-section" aria-labelledby="accounts-title">
+        <div class="section-heading">
+          <div>
+            <h2 id="accounts-title">已保存的登录信息</h2>
+            <p class="muted">可随时重新扫码更新，或导出用于其它本地服务。</p>
+          </div>
+          <button id="reload" class="quiet">刷新列表</button>
+        </div>
+        <div id="accounts" class="account-list"></div>
+      </section>
+      <footer>独立扫码服务 · 登录凭证仅在你主动复制或导出时提供</footer>
+    </main>
+  </body>
+</html>

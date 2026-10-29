@@ -1,0 +1,80 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# Virtualenvs
+.venv/
+venv/
+env/
+
+.venv-transcriber/
+
+# Tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Local config & secrets
+# Cookies and tokens are per-deployment; never commit them.
+.env
+.env.*
+!.env.example
+!.env.qr.example
+/work/
+**/vault.key
+**/accounts/*.enc
+*.local.yaml
+*.local.yml
+
+# What a deployment writes into its own checkout: the host-sized ceilings, the
+# control script (both from install/install.sh) and the transcription models.
+# Per machine by definition - a contributor's compose.host.yml once rode along
+# in a pull request - and the models are half a gigabyte.
+/compose.host.yml
+/compose.host.yml.old
+/dtkctl
+/.env.upgrade.*
+/models/
+/docker/models/
+
+# Runtime output
+logs/
+*.log
+downloads/
+
+# Editors / OS
+.idea/
+.vscode/
+.DS_Store
+
+# 本地 AI 协作产物：留在工作区，不入库
+docs/
+CLAUDE.md
+AGENTS.md
+GEMINI.md
+.claude/
+.cursor/
+.cursorrules
+.aider*
+.github/copilot-instructions.md
+
+# Working copies of V4 sources, taken with `git show main:<path>` while porting.
+# Fully reproducible from the main branch, so they are not carried here; the
+# salvage list lives in docs/design/16-salvage-and-debug.md.
+vendor_salvage/
+
+# Node
+node_modules/
+dist/
+
+# Go build output. `go build` in docker/downloader drops the binary beside the
+# source; the image builds it from scratch, so a committed copy is 9 MB of
+# nothing and would be wrong for every architecture but the one that made it.
+/docker/downloader/downloader
+/Depoly_SSH/

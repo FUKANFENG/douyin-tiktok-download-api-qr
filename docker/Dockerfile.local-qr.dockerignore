@@ -1,0 +1,9 @@
+**
+!src/
+!src/dtk/
+!src/dtk/**
+!web/
+!web/dist/
+!web/dist/**
+**/__pycache__/
+**/*.pyc

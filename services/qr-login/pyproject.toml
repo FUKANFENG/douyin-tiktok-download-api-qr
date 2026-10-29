@@ -1,0 +1,24 @@
+[project]
+name = "douyin-cookie-service"
+version = "0.2.0"
+requires-python = ">=3.11"
+description = "Standalone local Douyin QR login and encrypted Cookie service"
+dependencies = [
+  "fastapi==0.162.0", "uvicorn==0.54.0", "playwright==1.64.1", "cryptography==50.0.2"
+]
+
+[dependency-groups]
+dev = ["pytest==9.2.0", "pytest-asyncio==1.4.1", "httpx==0.28.1", "ruff==0.17.3"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+ignore = ["E501"]
