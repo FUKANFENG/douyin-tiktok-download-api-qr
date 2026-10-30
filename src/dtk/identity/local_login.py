@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import AsyncIterable
 from typing import Annotated, Any, Literal
 from urllib.parse import urlsplit
@@ -117,6 +118,16 @@ async def service_response(
             raise ValueError
     except ValueError:
         raise NotConfigured(details={"reason": "qr_invalid_address"}) from None
+
+    # Validate again at the HTTP boundary, including callers outside the API's ID models.
+    # Only these local endpoints may receive the service bearer token.
+    if not re.fullmatch(
+        r"/api/(?:bootstrap|logins(?:/[a-f0-9]{32}(?:/(?:qr|code))?)?"
+        r"|accounts/[a-f0-9]{32}/export"
+        r"|publishing(?:/jobs(?:/[a-f0-9]{32}(?:/(?:video|prepare|publish))?)?)?)",
+        path,
+    ):
+        raise InvalidParam(details={"reason": "qr_invalid_path"})
 
     # Ignore system proxies and redirects: the bearer token must stay on this local service.
     # https://www.python-httpx.org/environment_variables/

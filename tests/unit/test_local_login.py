@@ -78,6 +78,49 @@ async def test_invalid_destination_is_refused_before_sending(url, remote):
 
 
 @pytest.mark.parametrize(
+    "path",
+    [
+        "https://example.com/api/bootstrap",
+        "//example.com/api/bootstrap",
+        "/api/publishing/jobs/../../accounts/secret/export",
+        "/api/publishing/jobs/%2e%2e/%2e%2e/accounts/secret/export",
+        "/api/publishing/jobs/" + "a" * 32 + "?redirect=https://example.com",
+        "/api/publishing/jobs/" + "a" * 32 + "#ignored",
+        "/api/publishing/jobs/" + "a" * 32 + "\\video",
+        "/api/publishing/jobs/" + "a" * 32 + "\n",
+        "/healthz",
+    ],
+)
+async def test_untrusted_service_paths_are_refused_before_sending(path, remote):
+    with pytest.raises(InvalidParam):
+        await service_response(request(), "GET", path, accept_errors=True)
+    assert remote[0] == []
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/api/bootstrap",
+        "/api/logins",
+        "/api/logins/" + "a" * 32,
+        "/api/logins/" + "a" * 32 + "/qr",
+        "/api/logins/" + "a" * 32 + "/code",
+        "/api/accounts/" + "a" * 32 + "/export",
+        "/api/publishing",
+        "/api/publishing/jobs",
+        "/api/publishing/jobs/" + "a" * 32,
+        "/api/publishing/jobs/" + "a" * 32 + "/video",
+        "/api/publishing/jobs/" + "a" * 32 + "/prepare",
+        "/api/publishing/jobs/" + "a" * 32 + "/publish",
+    ],
+)
+async def test_qr_and_publishing_paths_stay_on_the_configured_service(path, remote):
+    await service_response(request(), "GET", path)
+    assert len(remote[0]) == 1
+    assert str(remote[0][0].url) == "http://host.docker.internal:8790" + path
+
+
+@pytest.mark.parametrize(
     "status,error",
     [
         (302, UpstreamUnreachable),
