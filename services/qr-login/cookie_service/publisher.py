@@ -13,11 +13,14 @@ from urllib.parse import urlsplit
 
 from .browser import find_browser
 from .publishing import PublishProblem
+from .topics import Topics, candidates, verify_submission
 
 UPLOAD_URL = "https://creator.douyin.com/creator-micro/content/upload"
 MANAGE_URL = "https://creator.douyin.com/creator-micro/content/manage"
 USER_PATH = "/web/api/media/user/info/"
 WORK_PATH = "/janus/douyin/creator/pc/work_list"
+RECOMMEND_PATH = "/web/api/media/hashtag/rec/"
+PUBLISH_PATHS = {"/web/api/media/aweme/create", "/web/api/media/aweme/create_v2"}
 
 
 def response_at(response, path):
@@ -65,6 +68,7 @@ class DouyinPublisher:
                     user_agent=record["user_agent"],
                     locale="zh-CN",
                     timezone_id="Asia/Shanghai",
+                    service_workers="block",
                 )
                 page = await context.new_page()
                 page.set_default_timeout(15000)
@@ -108,6 +112,136 @@ class DouyinPublisher:
             author = await self.open_upload(page)
             return dict(author, storage_state=await context.storage_state())
 
+    async def search_on_page(self, page, keyword):
+        data = await page.evaluate(
+            """async (keyword) => {
+            const url = new URL('/aweme/v1/search/challengesug/', location.origin);
+            url.search = new URLSearchParams({keyword, source:'challenge_create', aid:'2906'});
+            const response = await fetch(url, {credentials:'include'});
+            if (!response.ok) throw new Error('topic search failed');
+            return await response.json();
+        }""",
+            keyword,
+        )
+        if data.get("status_code", 0) != 0:
+            raise PublishProblem("topic_search_failed")
+        try:
+            return candidates(data, "search")
+        except ValueError:
+            raise PublishProblem("topic_search_failed") from None
+
+    async def search_topics(self, record, keyword):
+        async with self.session(record) as (_context, page):
+            await self.open_upload(page)
+            return await self.search_on_page(page, keyword)
+
+    async def upload_video(self, page, path):
+        await page.locator('input[type="file"]').first.set_input_files(str(path))
+        await page.wait_for_url(
+            re.compile(r"https://creator\.douyin\.com/creator-micro/content/(publish|post/video)(?:\?|$)"),
+            timeout=180000,
+        )
+        await page.locator('div.zone-container[contenteditable="true"]').first.wait_for(
+            state="visible", timeout=180000
+        )
+        await page.locator('[class^="long-card"] div:has-text("重新上传")').first.wait_for(
+            state="visible", timeout=600000
+        )
+        await self.require_no_verification(page)
+
+    async def recommend(self, record, job, path):
+        async with self.session(record) as (context, page):
+
+            async def block_publication(route):
+                if urlsplit(route.request.url).path.rstrip("/") in PUBLISH_PATHS:
+                    return await route.abort()
+                await route.fallback()
+
+            await context.route("**/*", block_publication)
+            author = await self.open_upload(page)
+            if author["uid"] != job["account_uid"]:
+                raise PublishProblem("account_changed")
+            async with page.expect_response(
+                lambda r: response_at(r, RECOMMEND_PATH), timeout=600000
+            ) as pending:
+                await self.upload_video(page, path)
+            response = await pending.value
+            if response.status != 200:
+                raise PublishProblem("topic_recommend_failed")
+            try:
+                data = await response.json()
+                if not isinstance(data, dict) or data.get("status_code", 0) != 0:
+                    raise ValueError("Recommendation unavailable")
+                recommendations = candidates(data, "recommend")
+            except ValueError:
+                raise PublishProblem("topic_recommend_failed") from None
+            return dict(author, recommendations=recommendations, storage_state=await context.storage_state())
+
+    async def fill_topics(self, page, editor, topics):
+        for topic in topics:
+            if topic.id is not None:
+                results = await self.search_on_page(page, topic.name)
+                if not any(t["id"] == topic.id and t["name"] == topic.name for t in results):
+                    raise PublishProblem("topic_not_found")
+            await editor.press("Control+End")
+            await editor.press_sequentially(" #" + topic.name, delay=25)
+            if topic.id is None:
+                await editor.press("Space")
+            else:
+                row = (
+                    page.locator('div[class*="tag-hash"]:not([class*="tag-hash-view"])')
+                    .filter(has=page.get_by_text(topic.name, exact=True))
+                    .first
+                )
+                await row.click(timeout=20000)
+            await page.keyboard.press("Escape")
+            await page.wait_for_function(
+                """name => [...document.querySelectorAll('[data-mention="#"]')]
+                .some(element => element.textContent.trim() === '#' + name)""",
+                arg=topic.name,
+                timeout=10000,
+            )
+
+    async def click_with_topic_guard(self, context, button, topics, on_submitting):
+        observed = asyncio.Event()
+        outcome = {"allowed": False, "blocked": False}
+
+        async def guard(route):
+            request = route.request
+            url = urlsplit(request.url)
+            if request.method in {"GET", "HEAD", "OPTIONS"}:
+                return await route.fallback()
+            if (
+                request.method != "POST"
+                or url.scheme != "https"
+                or url.hostname != "creator.douyin.com"
+                or url.path.rstrip("/") not in PUBLISH_PATHS
+            ):
+                return await route.abort()
+            if outcome["allowed"] or outcome["blocked"]:
+                return await route.abort()
+            try:
+                verify_submission(request.post_data or "", topics)
+            except ValueError:
+                outcome["blocked"] = True
+                observed.set()
+                return await route.abort()
+            outcome["allowed"] = True
+            observed.set()
+            await route.fallback()
+
+        # After all uploads finish, fail closed for any unrecognized mutation.
+        # Service workers are disabled so they cannot bypass this request boundary.
+        await context.route("**/*", guard)
+        on_submitting()
+        await button.click(timeout=15000)
+        try:
+            await asyncio.wait_for(observed.wait(), timeout=20)
+        except TimeoutError:
+            raise PublishProblem("topics_unverified", submission_blocked=True) from None
+        if outcome["blocked"]:
+            raise PublishProblem("topics_unverified", submission_blocked=True)
+
     async def read_posts(self, page):
         async with page.expect_response(lambda r: response_at(r, WORK_PATH), timeout=30000) as pending:
             await page.goto(MANAGE_URL, wait_until="domcontentloaded", timeout=30000)
@@ -125,19 +259,15 @@ class DouyinPublisher:
             author = await self.open_upload(page)
             if author["uid"] != job["account_uid"]:
                 raise PublishProblem("account_changed")
-            await page.locator('input[type="file"]').first.set_input_files(str(path))
-            await page.wait_for_url(
-                re.compile(
-                    r"https://creator\.douyin\.com/creator-micro/content/(publish|post/video)(?:\?|$)"
-                ),
-                timeout=180000,
-            )
+            await self.upload_video(page, path)
             title = page.locator('input[placeholder*="填写作品标题"]').first
             await title.wait_for(state="visible", timeout=180000)
             await title.fill(job["title"])
             editor = page.locator('div.zone-container[contenteditable="true"]').first
             await editor.wait_for(state="visible", timeout=30000)
             await editor.fill(job["description"])
+            topics = Topics(topics=job.get("topics", [])).topics
+            await self.fill_topics(page, editor, topics)
             await page.keyboard.press("Escape")
             await page.locator('[class^="long-card"] div:has-text("重新上传")').first.wait_for(
                 state="visible", timeout=600000
@@ -160,8 +290,11 @@ class DouyinPublisher:
             if not await button.is_enabled():
                 raise PublishProblem("publish_not_ready")
             clicked_at = int(time.time())
-            on_submitting()  # Persist the uncertainty boundary BEFORE the one final click.
-            await button.click(timeout=15000)
+            if topics:
+                await self.click_with_topic_guard(context, button, topics, on_submitting)
+            else:
+                on_submitting()  # Persist the uncertainty boundary BEFORE the one final click.
+                await button.click(timeout=15000)
             await page.wait_for_url(re.compile(re.escape(MANAGE_URL) + r"(?:\?|$)"), timeout=45000)
             fresh = await self.read_posts(page)
             matches = {

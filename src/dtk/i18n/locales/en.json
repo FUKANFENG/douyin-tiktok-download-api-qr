@@ -765,6 +765,18 @@
       "publishing_cancel": {
         "summary": "Discard local video draft",
         "description": "Remove local draft media; never delete platform works."
+      },
+      "publishing_topic_search": {
+        "summary": "Search native Douyin topics",
+        "description": "Search existing topics for the selected account without exposing credentials."
+      },
+      "publishing_topics": {
+        "summary": "Replace selected topics",
+        "description": "Supply the current topic version to avoid overwriting another editor or using stale confirmation."
+      },
+      "publishing_recommend": {
+        "summary": "Get video topic recommendations",
+        "description": "Explicitly acknowledge the platform draft upload, then read native recommendations without publishing."
       }
     },
     "param": {
@@ -1088,11 +1100,29 @@
         "title": "Video title, up to 30 characters.",
         "description": "Optional description, up to 1000 characters.",
         "filename": "MP4, MOV or M4V basename.",
-        "size": "Exact video size in bytes, up to 1 GiB."
+        "size": "Exact video size in bytes, up to 1 GiB.",
+        "topics": "Up to five unique topics in insertion order."
       },
       "Confirmation": {
         "account_id": "The verified account ID for this job.",
-        "confirm": "Explicit confirmation to upload and publish; must be true."
+        "confirm": "Explicit confirmation to upload and publish; must be true.",
+        "topics_revision": "Topic selection version displayed in the confirmation dialog."
+      },
+      "TopicItem": {
+        "id": "Platform topic ID; null for an explicit custom topic.",
+        "name": "Topic name without a hash or separators.",
+        "source": "Topic source: search, video recommendation or explicit custom input."
+      },
+      "TopicSearch": {
+        "account_id": "Saved account ID used to query native topic suggestions.",
+        "keyword": "Topic search keyword, up to 100 characters."
+      },
+      "TopicUpdate": {
+        "topics": "Up to five unique topics in insertion order.",
+        "revision": "Current topic selection version from the job being edited."
+      },
+      "Recommendation": {
+        "confirm_upload": "Explicit consent to upload this video to a platform draft without publishing."
       }
     },
     "response": {

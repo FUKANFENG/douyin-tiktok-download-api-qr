@@ -93,3 +93,85 @@ async def test_authenticated_binary_video_exceeds_json_ceiling_without_buffering
     # No other JSON endpoint inherits the video route's larger ceiling.
     refused = await client.post(f"{BASE}/jobs", content=b"x" * (1024 * 1024 + 1))
     assert refused.status_code == 413
+
+
+async def test_topic_routes_require_admin_and_explicit_draft_upload(client, monkeypatch):
+    from dtk.api.routes.admin import publishing
+
+    calls = []
+
+    async def remote(_request, method, path, body=None, **kwargs):
+        calls.append((method, path, body))
+        return httpx.Response(
+            200,
+            json={
+                "items": [
+                    {
+                        "id": "123",
+                        "name": "Food",
+                        "source": "search",
+                        "views": 42,
+                        "storage_state": "private",
+                    }
+                ]
+            }
+            if path == "/api/publishing/topics/search"
+            else job(),
+        )
+
+    monkeypatch.setattr(publishing, "service_response", remote)
+    assert (
+        await client.post(BASE + "/topics/search", json={"account_id": ACCOUNT, "keyword": "Food"})
+    ).status_code == 401
+    await support.signed_in(client, role=UserRole.OPERATOR)
+    assert (
+        await client.post(BASE + "/topics/search", json={"account_id": ACCOUNT, "keyword": "Food"})
+    ).status_code == 403
+    assert calls == []
+    await support.signed_in(client, username="topic-admin")
+    result = await client.post(
+        BASE + "/topics/search", json={"account_id": ACCOUNT, "keyword": "Food"}
+    )
+    assert result.status_code == 200
+    assert result.json()["data"]["items"][0]["id"] == "123"
+    assert "private" not in result.text
+    calls.clear()
+    assert (await client.post(f"{BASE}/jobs/{JOB}/recommend", json={})).status_code == 400
+    assert calls == []
+    assert (
+        await client.post(f"{BASE}/jobs/{JOB}/recommend", json={"confirm_upload": True})
+    ).status_code == 200
+    assert len(calls) == 1
+
+
+async def test_topic_validation_and_confirmation_revision_are_forwarded(client, monkeypatch):
+    from dtk.api.routes.admin import publishing
+
+    calls = []
+
+    async def remote(_request, method, path, body=None, **kwargs):
+        calls.append((method, path, body))
+        return httpx.Response(200, json=job())
+
+    monkeypatch.setattr(publishing, "service_response", remote)
+    await support.signed_in(client)
+    rejected = await client.put(
+        f"{BASE}/jobs/{JOB}/topics",
+        json={"revision": "c" * 32, "topics": [{"name": "Plain text", "source": "search"}]},
+    )
+    assert rejected.status_code == 400
+    assert calls == []
+    selected = [{"id": "123", "name": "Food", "source": "search"}]
+    assert (
+        await client.put(
+            f"{BASE}/jobs/{JOB}/topics", json={"revision": "c" * 32, "topics": selected}
+        )
+    ).status_code == 200
+    assert calls[-1][2]["topics"] == selected
+    assert (
+        await client.post(
+            f"{BASE}/jobs/{JOB}/publish",
+            json={"account_id": ACCOUNT, "confirm": True, "topics_revision": "c" * 32},
+        )
+    ).status_code == 200
+    assert calls[-1][2]["topics_revision"] == "c" * 32

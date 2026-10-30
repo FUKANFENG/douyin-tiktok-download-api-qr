@@ -124,7 +124,7 @@ async def service_response(
     if not re.fullmatch(
         r"/api/(?:bootstrap|logins(?:/[a-f0-9]{32}(?:/(?:qr|code))?)?"
         r"|accounts/[a-f0-9]{32}/export"
-        r"|publishing(?:/jobs(?:/[a-f0-9]{32}(?:/(?:video|prepare|publish))?)?)?)",
+        r"|publishing(?:/topics/search|/jobs(?:/[a-f0-9]{32}(?:/(?:video|prepare|publish|topics|recommend))?)?)?)",
         path,
     ):
         raise InvalidParam(details={"reason": "qr_invalid_path"})
