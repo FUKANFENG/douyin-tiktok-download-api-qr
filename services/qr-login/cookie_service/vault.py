@@ -111,7 +111,32 @@ class Vault:
         accounts = [self.summary(self.export(path.stem)) for path in self.records.glob("*.enc")]
         return sorted(accounts, key=lambda account: account["updated_at"], reverse=True)
 
-    def save(self, cookies: list[dict], fingerprint: dict, label: str, replace_id: str | None = None) -> dict:
+    def browser_state(self, account_id: str) -> dict:
+        record = self.export(account_id)
+        return record.get("storage_state") or {"cookies": record["cookies"], "origins": []}
+
+    def update_browser_state(self, account_id: str, state: dict, *, expected_revision: str) -> dict:
+        record = self.export(account_id)
+        if record["updated_at"] != expected_revision:
+            raise ValueError("Account changed; check the renewed login before publishing.")
+        # A creator-only cookie is not a cookie for the collection site's HTTP requests.
+        cookies = [
+            c
+            for c in state["cookies"]
+            if c.get("domain", "").lstrip(".") in {"douyin.com", "www.douyin.com"}
+            and c.get("path", "/") == "/"
+        ]
+        return self.save(cookies, record["fingerprint"], record["label"], account_id, storage_state=state)
+
+    def save(
+        self,
+        cookies: list[dict],
+        fingerprint: dict,
+        label: str,
+        replace_id: str | None = None,
+        *,
+        storage_state: dict | None = None,
+    ) -> dict:
         if not usable_login(cookies) or not fingerprint.get("user_agent"):
             raise ValueError("尚未收集到完整的抖音登录 Cookie 和浏览器信息。")
         previous = self.export(replace_id) if replace_id else None
@@ -131,6 +156,8 @@ class Vault:
             "user_agent": fingerprint["user_agent"],
             "fingerprint": fingerprint,
         }
+        if storage_state is not None:
+            record["storage_state"] = storage_state
         encrypted = self.cipher.encrypt(json.dumps(record, ensure_ascii=False).encode("utf-8"))
         temporary = None
         try:

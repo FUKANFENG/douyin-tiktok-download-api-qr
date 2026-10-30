@@ -12,6 +12,9 @@ from pydantic import BaseModel, Field
 
 from . import __version__
 from .browser import BrowserLogin, find_browser
+from .publisher import DouyinPublisher
+from .publishing import PublishManager, PublishProblem
+from .publishing_api import router as publishing_router
 from .sessions import TERMINAL, BusySession, LoginManager
 from .vault import Vault
 
@@ -37,10 +40,15 @@ class VerificationCode(BaseModel):
     code: str = Field(pattern=r"^[0-9]{4,8}$")
 
 
-def create_app(data_dir: Path | None = None, driver=None, ttl: float = 180) -> FastAPI:
+def create_app(data_dir: Path | None = None, driver=None, ttl: float = 180, publisher=None) -> FastAPI:
     web_ui = os.environ.get("DY_COOKIE_WEB_UI", "true").lower() == "true"
     vault = Vault(Path(data_dir or os.environ.get("DY_COOKIE_DATA_DIR", DEFAULT_DATA)))
     manager = LoginManager(vault, driver or BrowserLogin(), ttl=ttl)
+    publishing = PublishManager(
+        vault,
+        publisher or DouyinPublisher(),
+        account_busy=lambda _account_id: any(s.status not in TERMINAL for s in manager.sessions.values()),
+    )
 
     # FastAPI's lifespan owns the live browser tasks, including shutdown cleanup.
     # https://fastapi.tiangolo.com/advanced/events/
@@ -48,12 +56,19 @@ def create_app(data_dir: Path | None = None, driver=None, ttl: float = 180) -> F
     async def lifespan(app):
         yield
         await manager.close()
+        await publishing.close()
 
     app = FastAPI(
         title="抖音扫码登录服务", version=__version__, lifespan=lifespan, docs_url=None, redoc_url=None
     )
     app.state.vault = vault
     app.state.manager = manager
+    app.state.publishing = publishing
+    app.include_router(publishing_router)
+
+    @app.exception_handler(PublishProblem)
+    async def publishing_problem(request, error):
+        return JSONResponse({"detail": error.code}, status_code=error.status, headers=SECURITY_HEADERS)
 
     @app.middleware("http")
     async def local_security(request: Request, call_next):
@@ -78,7 +93,11 @@ def create_app(data_dir: Path | None = None, driver=None, ttl: float = 180) -> F
             authorization = request.headers.get("authorization", "")
             bearer = authorization.startswith("Bearer ")
             candidate = (
-                authorization[7:] if bearer else "" if authorization or not web_ui else request.cookies.get(COOKIE_NAME, "")
+                authorization[7:]
+                if bearer
+                else ""
+                if authorization or not web_ui
+                else request.cookies.get(COOKIE_NAME, "")
             )
             if not hmac.compare_digest(candidate.encode(), vault.api_token.encode()):
                 return reject("请先打开本地登录页面。", 401)
@@ -131,6 +150,8 @@ def create_app(data_dir: Path | None = None, driver=None, ttl: float = 180) -> F
 
     @app.post("/api/logins", status_code=202)
     async def start_login(body: StartLogin):
+        if publishing.busy():
+            raise HTTPException(409, "正在检查或发布视频，请稍后扫码。")
         try:
             return (await manager.start(body.label, body.replace_id)).public()
         except BusySession as error:
@@ -176,6 +197,8 @@ def create_app(data_dir: Path | None = None, driver=None, ttl: float = 180) -> F
 
     @app.delete("/api/accounts/{account_id}")
     async def delete_account(account_id: str):
+        if publishing.busy(account_id):
+            raise HTTPException(409, "正在使用此账号发布视频，请稍后删除。")
         if any(
             session.replace_id == account_id and session.status not in TERMINAL
             for session in manager.sessions.values()

@@ -82,8 +82,10 @@ class LoginManager:
     async def _run(self, session: LoginSession) -> None:
         try:
             async with asyncio.timeout(self.ttl):
-                cookies, fingerprint = await self.driver.run(session)
-                session.account = self.vault.save(cookies, fingerprint, session.label, session.replace_id)
+                cookies, fingerprint, storage_state = await self.driver.run(session)
+                session.account = self.vault.save(
+                    cookies, fingerprint, session.label, session.replace_id, storage_state=storage_state
+                )
                 session.status = "complete"
                 session.message = "登录信息已加密保存，可以导出或用于后续接入。"
         except TimeoutError:

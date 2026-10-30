@@ -10,7 +10,7 @@ x-app-environment: &app-environment
   DTK_BACKUP_DIR: /var/lib/dtk/backups
 
 x-app: &app
-  image: dtk-qr-app:5.1.7-qr1
+  image: dtk-qr-app:5.1.7-unified1
   build:
     context: .
     dockerfile: docker/Dockerfile.qr-app
@@ -143,7 +143,7 @@ services:
     restart: unless-stopped
 
   qr-login:
-    image: dtk-qr-login:0.2.0
+    image: dtk-qr-login:0.3.0
     build:
       context: .
       dockerfile: docker/Dockerfile.qr-login
@@ -159,9 +159,9 @@ services:
       - no-new-privileges:true
       - seccomp=./docker/qr-seccomp.json
     cap_drop: [ALL]
-    mem_limit: 1536m
+    mem_limit: 2g
     cpus: 2.0
-    pids_limit: 256
+    pids_limit: 512
     healthcheck:
       test: [CMD, python, -c, "import json,urllib.request; assert json.load(urllib.request.urlopen('http://127.0.0.1:8790/healthz',timeout=3))['browser_available']"]
       interval: 10s

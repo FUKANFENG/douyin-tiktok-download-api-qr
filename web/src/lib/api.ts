@@ -444,7 +444,9 @@ export async function apiRequest<T>(
     'Accept-Language': currentLanguage(),
     ...headers,
   }
-  if (body !== undefined && !(body instanceof FormData)) {
+  if (body instanceof Blob) {
+    requestHeaders['Content-Type'] = body.type || 'application/octet-stream'
+  } else if (body !== undefined && !(body instanceof FormData)) {
     requestHeaders['Content-Type'] = 'application/json'
   }
 
@@ -459,7 +461,7 @@ export async function apiRequest<T>(
       body:
         body === undefined
           ? undefined
-          : body instanceof FormData
+          : body instanceof FormData || body instanceof Blob
             ? body
             : JSON.stringify(body),
     })

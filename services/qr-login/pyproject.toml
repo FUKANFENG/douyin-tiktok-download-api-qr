@@ -1,10 +1,11 @@
 [project]
 name = "douyin-cookie-service"
-version = "0.2.0"
+version = "0.3.0"
 requires-python = ">=3.11"
 description = "Standalone local Douyin QR login and encrypted Cookie service"
 dependencies = [
-  "fastapi==0.162.0", "uvicorn==0.54.0", "playwright==1.64.1", "cryptography==50.0.2"
+  "fastapi==0.162.0", "uvicorn==0.54.0", "playwright==1.64.1", "cryptography==50.0.2",
+  "patchright==1.58.2"
 ]
 
 [dependency-groups]

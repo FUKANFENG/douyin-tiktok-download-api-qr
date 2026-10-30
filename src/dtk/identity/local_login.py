@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import re
+from collections.abc import AsyncIterable
 from typing import Annotated, Any, Literal
 from urllib.parse import urlsplit
 
@@ -87,7 +89,14 @@ class ExportRecord(BaseModel):
 
 
 async def service_response(
-    request: Request, method: str, path: str, body: dict | None = None
+    request: Request,
+    method: str,
+    path: str,
+    body: dict | None = None,
+    *,
+    content: AsyncIterable[bytes] | None = None,
+    timeout: float = 12,
+    accept_errors: bool = False,
 ) -> httpx.Response:
     settings = request.app.state.settings
     if not settings.qr_login_url or not settings.qr_login_token:
@@ -110,9 +119,21 @@ async def service_response(
     except ValueError:
         raise NotConfigured(details={"reason": "qr_invalid_address"}) from None
 
+    # Validate again at the HTTP boundary, including callers outside the API's ID models.
+    # Only these local endpoints may receive the service bearer token.
+    if not re.fullmatch(
+        r"/api/(?:bootstrap|logins(?:/[a-f0-9]{32}(?:/(?:qr|code))?)?"
+        r"|accounts/[a-f0-9]{32}/export"
+        r"|publishing(?:/jobs(?:/[a-f0-9]{32}(?:/(?:video|prepare|publish))?)?)?)",
+        path,
+    ):
+        raise InvalidParam(details={"reason": "qr_invalid_path"})
+
     # Ignore system proxies and redirects: the bearer token must stay on this local service.
     # https://www.python-httpx.org/environment_variables/
-    async with httpx.AsyncClient(trust_env=False, follow_redirects=False, timeout=12) as client:
+    async with httpx.AsyncClient(
+        trust_env=False, follow_redirects=False, timeout=timeout
+    ) as client:
         try:
             async with client.stream(
                 method,
@@ -122,20 +143,21 @@ async def service_response(
                     "Host": f"127.0.0.1:{port}",
                 },
                 json=body,
+                content=content,
             ) as response:
-                if response.status_code == 404:
+                if response.status_code == 404 and not accept_errors:
                     raise NotFound(details={"reason": "qr_record_missing"})
-                if response.status_code == 409:
+                if response.status_code == 409 and not accept_errors:
                     raise InvalidParam(details={"reason": "qr_busy"})
-                if response.status_code >= 300:
+                if response.status_code >= 300 and not accept_errors:
                     raise UpstreamUnreachable(details={"reason": "qr_service_unavailable"})
-                content = bytearray()
+                response_content = bytearray()
                 async for chunk in response.aiter_bytes():
-                    content.extend(chunk)
-                    if len(content) > 2 * 1024 * 1024:
+                    response_content.extend(chunk)
+                    if len(response_content) > 2 * 1024 * 1024:
                         raise UpstreamUnreachable(details={"reason": "qr_invalid_response"})
                 return httpx.Response(
-                    response.status_code, content=bytes(content), headers=response.headers
+                    response.status_code, content=bytes(response_content), headers=response.headers
                 )
         except httpx.HTTPError:
             raise UpstreamUnreachable(details={"reason": "qr_service_unavailable"}) from None

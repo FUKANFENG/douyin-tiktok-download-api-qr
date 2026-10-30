@@ -1,0 +1,14 @@
+.page, .form, .jobs { display: grid; gap: var(--space-5); }
+.form { max-width: 48rem; }
+.actions, .jobHeading { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-3); }
+.jobHeading { justify-content: space-between; }
+.jobHeading h3 { margin: 0; font-size: 1rem; }
+.job { padding: var(--space-4) 0; border-bottom: 1px solid var(--border); min-width: 0; overflow-wrap: anywhere; }
+.job:first-child { padding-top: 0; }
+.job:last-child { border-bottom: 0; }
+.job p { margin: var(--space-2) 0; }
+.state { padding: var(--space-1) var(--space-2); background: var(--bg-inset); border-radius: var(--radius); font-size: .875rem; }
+.meta { color: var(--text-muted); font-size: .875rem; }
+.notice { padding: var(--space-3); border-left: 3px solid var(--warning); background: var(--bg-inset); overflow-wrap: anywhere; }
+.confirm { overflow-wrap: anywhere; white-space: pre-wrap; }
+@media (max-width: 600px) { .actions { align-items: stretch; } .actions button { flex: 1 1 auto; } }

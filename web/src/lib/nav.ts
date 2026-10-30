@@ -63,6 +63,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { path: '/proxies', labelKey: 'nav.proxies', group: 'pool', icon: 'globe' },
   { path: '/scheduler', labelKey: 'nav.scheduler', group: 'pool', icon: 'sliders', demo: true },
   { path: '/library', labelKey: 'nav.library', group: 'content', icon: 'archive', demo: true },
+  { path: '/publishing', labelKey: 'nav.publishing', group: 'content', icon: 'archive' },
   { path: '/downloads', labelKey: 'nav.downloads', group: 'content', icon: 'download', demo: true },
   { path: '/transcriptions', labelKey: 'nav.transcriptions', group: 'content', icon: 'captions' },
   { path: '/watchlist', labelKey: 'nav.watchlist', group: 'content', icon: 'clock' },

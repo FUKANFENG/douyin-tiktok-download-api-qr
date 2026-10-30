@@ -35,6 +35,15 @@ export const paths = {
     batch: `${API_V1}/tasks/batch`,
   },
   parse: `${API_V1}/parse`,
+  publishing: {
+    root: `${API_V1}/admin/publishing`,
+    jobs: `${API_V1}/admin/publishing/jobs`,
+    job: (id: string) => `${API_V1}/admin/publishing/jobs/${encodeURIComponent(id)}`,
+    video: (id: string) => `${API_V1}/admin/publishing/jobs/${encodeURIComponent(id)}/video`,
+    prepare: (id: string) => `${API_V1}/admin/publishing/jobs/${encodeURIComponent(id)}/prepare`,
+    publish: (id: string) => `${API_V1}/admin/publishing/jobs/${encodeURIComponent(id)}/publish`,
+    sync: (id: string) => `${API_V1}/admin/publishing/jobs/${encodeURIComponent(id)}/sync`,
+  },
   qrLogin: {
     root: `${API_V1}/admin/qr-login`,
     sessions: `${API_V1}/admin/qr-login/sessions`,
