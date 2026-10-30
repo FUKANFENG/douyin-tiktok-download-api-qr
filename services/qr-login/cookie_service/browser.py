@@ -44,7 +44,7 @@ class BrowserLogin:
     def __init__(self, executable: str | None = None):
         self.executable = executable or find_browser()
 
-    async def run(self, session: LoginSession) -> tuple[list[dict], dict]:
+    async def run(self, session: LoginSession) -> tuple[list[dict], dict, dict]:
         if not self.executable:
             raise LoginError("未找到 Chrome 或 Edge，请安装浏览器或设置 DY_COOKIE_BROWSER_PATH。")
         browser = None
@@ -92,7 +92,7 @@ class BrowserLogin:
                             device_memory: navigator.deviceMemory ?? null
                         })""")
                         fingerprint.update(browser_family="chrome", browser_version=browser.version)
-                        return cookies, fingerprint
+                        return cookies, fingerprint, await context.storage_state()
 
                     found_qr = await self._capture_qr(page, session)
                     if not found_qr and not opened:

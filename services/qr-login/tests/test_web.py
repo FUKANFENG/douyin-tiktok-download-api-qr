@@ -19,7 +19,11 @@ def live_app(tmp_path):
     class CompletedLogin:
         async def run(self, session):
             await asyncio.sleep(0.15)
-            return cookies(), {"user_agent": "Mozilla/5.0 Chrome/155.0.0.0", "browser_version": "155"}
+            return (
+                cookies(),
+                {"user_agent": "Mozilla/5.0 Chrome/155.0.0.0", "browser_version": "155"},
+                {"cookies": cookies(), "origins": []},
+            )
 
     import socket
 

@@ -20,6 +20,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 COPY services/qr-login/cookie_service ./cookie_service
 COPY services/qr-login/static ./static
 COPY LICENSE NOTICE /app/
+COPY third_party/social-auto-upload-LICENSE /app/third_party/social-auto-upload-LICENSE
 RUN useradd --create-home --uid 10001 qruser && install -d -o qruser -g qruser -m 0700 /var/lib/dtk-qr
 ENV PATH=/app/.venv/bin:$PATH \
     PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 \

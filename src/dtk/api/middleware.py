@@ -10,6 +10,7 @@ reads the current snapshot per request instead (doc 10).
 
 from __future__ import annotations
 
+import re
 import time
 import uuid
 from dataclasses import dataclass
@@ -243,12 +244,19 @@ class BodyLimitMiddleware:
             await self.app(scope, receive, send)
             return
 
+        # The sole binary upload route streams to disk after administrator auth.
+        # JSON routes retain their small ceiling; a similarly named path is not exempt.
+        limit = self.max_bytes
+        if scope.get("method") == "PUT" and re.fullmatch(
+            r"/api/v1/admin/publishing/jobs/[a-f0-9]{32}/video", scope.get("path", "")
+        ):
+            limit = 1024 * 1024 * 1024
         declared = _declared_length(scope)
-        if declared is not None and declared > self.max_bytes:
-            await _refuse(scope, receive, send, limit=self.max_bytes, size=declared)
+        if declared is not None and declared > limit:
+            await _refuse(scope, receive, send, limit=limit, size=declared)
             return
 
-        counted = _CountedBody(scope, receive, send, self.max_bytes)
+        counted = _CountedBody(scope, receive, send, limit)
         try:
             await self.app(scope, counted.receive, counted.send)
         except Exception:

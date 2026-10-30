@@ -733,6 +733,38 @@
       "trending": {
         "summary": "热榜",
         "description": "获取一整张热榜：大家正在搜索的词，按名次排列，带热度和平台自己的词条页面。支持抖音的四个榜单与 B 站热搜。"
+      },
+      "publishing_overview": {
+        "summary": "列出共用账号与发布记录",
+        "description": "仅返回账号摘要和最近记录，不返回登录凭证。"
+      },
+      "publishing_create": {
+        "summary": "创建本机视频草稿",
+        "description": "使用唯一标识防止重复创建，本操作不会发布。"
+      },
+      "publishing_status": {
+        "summary": "读取视频发布状态",
+        "description": "查看持久化进度；结果不确定时不要重发。"
+      },
+      "publishing_video": {
+        "summary": "流式上传视频到本机",
+        "description": "上传原始 MP4/MOV/M4V 字节，最大 1 GiB，仅管理员可用。"
+      },
+      "publishing_prepare": {
+        "summary": "检查创作者账号",
+        "description": "使用共用登录态确认昵称和账号编号，不发布作品。"
+      },
+      "publishing_publish": {
+        "summary": "确认并提交视频",
+        "description": "必须明确确认并传入已验证账号。只提交一次，不轮换账号。"
+      },
+      "publishing_sync": {
+        "summary": "同步采集登录状态",
+        "description": "将检查或发布后更新的登录态加密同步到采集身份池。"
+      },
+      "publishing_cancel": {
+        "summary": "清理本机视频草稿",
+        "description": "只清理本机素材，不删除平台作品。"
       }
     },
     "param": {
@@ -827,7 +859,8 @@
       "user_id": "要操作的控制台账号 ID。",
       "wait": "保持连接直到任务完成，最多等这么多秒——**这就是把调用变成同步的方式**。在时限内完成返回 200 和结果；没完成则返回 202、任务 ID 和 `state: running`，这不是错误，也不会丢任何东西。超过参数上显示的 `maximum` 上限会返回 400，是拒绝而不是悄悄缩短。省略或传 0 会立刻返回 202。详见本文档顶部的说明。",
       "serves": "只返回轮换可以分配给这个接口的身份，例如 `douyin.author_posts`：包括正常参与轮换的，以及清单里列了这个接口的。只服务指名请求的身份不会匹配；接口从第一页起就需要登录时，游客身份也不会匹配。",
-      "ready": "只返回调度器此刻会分配出去的身份：正常的，以及作为兜底的降级身份。和 `serves` 一起用时，就是覆盖卡片里「可分配」数到的那些身份。"
+      "ready": "只返回调度器此刻会分配出去的身份：正常的，以及作为兜底的降级身份。和 `serves` 一起用时，就是覆盖卡片里「可分配」数到的那些身份。",
+      "job_id": "发布任务编号。"
     },
     "field": {
       "StartLogin": {
@@ -1048,6 +1081,18 @@
       },
       "IdentityUpdate": {
         "note": "备注；传 null 即清除。只能一行，去掉首尾空格后最多 200 个字符；空白也会清除。这个字段必填，这样空的请求体不会被当成清除备注。"
+      },
+      "NewVideo": {
+        "account_id": "已保存的扫码账号编号。",
+        "client_key": "本次草稿唯一的 32 位十六进制标识。",
+        "title": "作品标题，最多 30 字。",
+        "description": "可选正文，最多 1000 字。",
+        "filename": "不含路径的 MP4、MOV 或 M4V 文件名。",
+        "size": "视频的精确字节数，最大 1 GiB。"
+      },
+      "Confirmation": {
+        "account_id": "本任务已核对的账号编号。",
+        "confirm": "明确确认上传并发布，必须为 true。"
       }
     },
     "response": {

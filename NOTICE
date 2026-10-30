@@ -12,3 +12,9 @@ Local QR login integration, persistence fixes, and Docker installation packaging
 See UPSTREAM.md for the base revision and a description of the modifications.
 
 The Chromium seccomp profile is from Microsoft Playwright (Apache-2.0).
+
+The Douyin video publishing workflow is adapted from social-auto-upload.
+Copyright (c) 2023 dreammis. Distributed under the MIT License; see
+third_party/social-auto-upload-LICENSE. Local changes add shared encrypted
+browser sessions, explicit account confirmation, durable submission state,
+bounded waits, and verification against the creator work list.

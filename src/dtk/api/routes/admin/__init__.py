@@ -28,6 +28,7 @@ from dtk.api.routes.admin import (
     logs,
     maintenance,
     proxies,
+    publishing,
     qr_login,
     settings,
     users,
@@ -38,6 +39,7 @@ router = APIRouter(prefix="/api/v1/admin", tags=["admin"])
 
 router.include_router(identities.router)
 router.include_router(qr_login.router)
+router.include_router(publishing.router)
 router.include_router(proxies.router)
 router.include_router(api_keys.router)
 router.include_router(settings.router)

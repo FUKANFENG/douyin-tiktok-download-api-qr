@@ -33,6 +33,7 @@ const Setup = lazy(() => import('@/pages/Setup'))
 const Login = lazy(() => import('@/pages/Login'))
 const Overview = lazy(() => import('@/pages/Overview'))
 const Identities = lazy(() => import('@/pages/Identities'))
+const Publishing = lazy(() => import('@/pages/Publishing'))
 const Proxies = lazy(() => import('@/pages/Proxies'))
 const ApiKeys = lazy(() => import('@/pages/ApiKeys'))
 const Scheduler = lazy(() => import('@/pages/Scheduler'))
@@ -89,6 +90,7 @@ function ConsoleRoutes() {
       <Switch>
         <Route path="/" component={Overview} />
         <Route path="/identities" component={Identities} />
+        <Route path="/publishing" component={Publishing} />
         <Route path="/proxies" component={Proxies} />
         <Route path="/api-keys" component={ApiKeys} />
         <Route path="/scheduler" component={Scheduler} />

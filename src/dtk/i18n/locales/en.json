@@ -733,6 +733,38 @@
       "trending": {
         "summary": "What people are searching for",
         "description": "A trending board, whole: the phrases people are searching for, ranked, with their heat and the platform's own page for each. Douyin's four boards and Bilibili's hot search."
+      },
+      "publishing_overview": {
+        "summary": "List shared accounts and publishing jobs",
+        "description": "Return account summaries and recent jobs without credentials."
+      },
+      "publishing_create": {
+        "summary": "Create a local video draft",
+        "description": "Use an idempotency key to avoid duplicate drafts. This does not publish."
+      },
+      "publishing_status": {
+        "summary": "Read publishing status",
+        "description": "Read durable progress; never resubmit an uncertain outcome."
+      },
+      "publishing_video": {
+        "summary": "Stream video to this instance",
+        "description": "Upload raw MP4/MOV/M4V bytes, up to 1 GiB. Administrator access required."
+      },
+      "publishing_prepare": {
+        "summary": "Check creator account",
+        "description": "Verify the creator name and ID using the shared login without publishing."
+      },
+      "publishing_publish": {
+        "summary": "Confirm and submit video",
+        "description": "Requires explicit confirmation and the checked account ID. Submits once without rotating accounts."
+      },
+      "publishing_sync": {
+        "summary": "Sync collection login",
+        "description": "Synchronize the updated encrypted browser login to the collection identity."
+      },
+      "publishing_cancel": {
+        "summary": "Discard local video draft",
+        "description": "Remove local draft media; never delete platform works."
       }
     },
     "param": {
@@ -827,7 +859,8 @@
       "user_id": "The console account to act on.",
       "wait": "Hold the connection until the task finishes, up to this many seconds - this is how to make the call synchronous. Finished in time gives 200 with the result; not finished gives 202 with the task id and `state: running`, which is not an error and loses nothing. Above the instance ceiling shown as `maximum` it is a 400, rejected rather than shortened. Omitted or 0 returns 202 at once. See the description at the top of this document.",
       "serves": "Only identities rotation may hand out for this endpoint, such as `douyin.author_posts`: those in ordinary rotation and those limited to a list that names it. Reserved identities never match, and guests do not where the endpoint needs a login from its first page.",
-      "ready": "Only identities the scheduler would hand out now: active, or degraded as a fallback. With `serves`, the identities the coverage card counts as able to serve that endpoint."
+      "ready": "Only identities the scheduler would hand out now: active, or degraded as a fallback. With `serves`, the identities the coverage card counts as able to serve that endpoint.",
+      "job_id": "Publishing job ID."
     },
     "field": {
       "StartLogin": {
@@ -1048,6 +1081,18 @@
       },
       "IdentityUpdate": {
         "note": "The note, or null to clear it. One line, at most 200 characters once trimmed; blank clears it too. Required, so that an empty body cannot read as clearing it."
+      },
+      "NewVideo": {
+        "account_id": "Saved QR account ID.",
+        "client_key": "Unique 32-character hexadecimal idempotency key.",
+        "title": "Video title, up to 30 characters.",
+        "description": "Optional description, up to 1000 characters.",
+        "filename": "MP4, MOV or M4V basename.",
+        "size": "Exact video size in bytes, up to 1 GiB."
+      },
+      "Confirmation": {
+        "account_id": "The verified account ID for this job.",
+        "confirm": "Explicit confirmation to upload and publish; must be true."
       }
     },
     "response": {

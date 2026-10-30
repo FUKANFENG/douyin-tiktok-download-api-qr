@@ -61,7 +61,11 @@ async def test_success_is_saved_with_ua_and_status_never_exposes_cookie(tmp_path
     class SuccessfulDriver:
         async def run(self, session):
             session.publish_qr(b"test-image")
-            return cookies(), {"user_agent": "Chrome/155", "browser_version": "155"}
+            return (
+                cookies(),
+                {"user_agent": "Chrome/155", "browser_version": "155"},
+                {"cookies": cookies(), "origins": []},
+            )
 
     manager = LoginManager(Vault(tmp_path), SuccessfulDriver())
     session = await manager.start("账号")
