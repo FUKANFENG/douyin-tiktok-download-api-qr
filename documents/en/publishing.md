@@ -1,5 +1,9 @@
 # Collect and publish with one Douyin login
 
+> **[Douyin_TikTok_Download_API](https://github.com/Evil0ctal/Douyin_TikTok_Download_API)**
+
+[简体中文](../zh/publishing.md)
+
 The console's **Publish video** page uses the same encrypted QR account source as collection. A saved QR login appears in the account selector. An identity created only by pasting a Cookie header needs a QR login before it can supply a complete browser session.
 
 Administrators can select an account, upload an MP4/MOV/M4V file of up to 1 GiB, and enter a title (30 characters) and description (1,000 characters). **Upload locally and check account** stores the file on this instance and verifies the creator's name and UID without publishing. **Confirm and publish to Douyin** shows that account and content for explicit confirmation, then uploads and submits once.
