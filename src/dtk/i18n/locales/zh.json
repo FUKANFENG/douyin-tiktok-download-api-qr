@@ -765,6 +765,18 @@
       "publishing_cancel": {
         "summary": "清理本机视频草稿",
         "description": "只清理本机素材，不删除平台作品。"
+      },
+      "publishing_topic_search": {
+        "summary": "搜索抖音原生话题",
+        "description": "使用指定账号查询已有话题候选，不返回登录凭据。"
+      },
+      "publishing_topics": {
+        "summary": "更新草稿话题选择",
+        "description": "提供当前话题版本，防止覆盖其他编辑或使用过期确认。"
+      },
+      "publishing_recommend": {
+        "summary": "获取视频推荐话题",
+        "description": "明确同意上传至平台草稿后读取原生推荐；不发布作品。"
       }
     },
     "param": {
@@ -1088,11 +1100,29 @@
         "title": "作品标题，最多 30 字。",
         "description": "可选正文，最多 1000 字。",
         "filename": "不含路径的 MP4、MOV 或 M4V 文件名。",
-        "size": "视频的精确字节数，最大 1 GiB。"
+        "size": "视频的精确字节数，最大 1 GiB。",
+        "topics": "按插入顺序选择的最多五个不重复话题。"
       },
       "Confirmation": {
         "account_id": "本任务已核对的账号编号。",
-        "confirm": "明确确认上传并发布，必须为 true。"
+        "confirm": "明确确认上传并发布，必须为 true。",
+        "topics_revision": "确认框显示的话题选择版本。"
+      },
+      "TopicItem": {
+        "id": "平台话题编号；明确选择的自定义话题为空。",
+        "name": "不带井号和分隔符的话题名称。",
+        "source": "话题来源：搜索、视频推荐或明确自定义。"
+      },
+      "TopicSearch": {
+        "account_id": "用于查询原生话题候选的已保存账号编号。",
+        "keyword": "话题搜索关键词，最多 100 字符。"
+      },
+      "TopicUpdate": {
+        "topics": "按插入顺序选择的最多五个不重复话题。",
+        "revision": "正在编辑的任务返回的当前话题版本。"
+      },
+      "Recommendation": {
+        "confirm_upload": "明确同意将此视频上传到平台草稿，不发布作品。"
       }
     },
     "response": {

@@ -2898,7 +2898,8 @@
       "published": "Submitted, awaiting platform review",
       "failed": "Not completed",
       "uncertain": "Result uncertain; do not republish",
-      "cancelled": "Local draft discarded"
+      "cancelled": "Local draft discarded",
+      "recommending": "Preparing video topic recommendations"
     },
     "errors": {
       "unavailable": "The operation could not complete. Refresh and check the job status first.",
@@ -2923,7 +2924,34 @@
       "result_unavailable": "The creator work list could not be verified.",
       "idempotency_conflict": "This upload key belongs to another video. Create a new draft.",
       "state_changed": "The job state changed. Refresh to check it.",
-      "draft_expired": "The draft was older than one day. Its local media was removed."
+      "draft_expired": "The draft was older than one day. Its local media was removed.",
+      "topic_search_failed": "Topic search is temporarily unavailable. Try again later.",
+      "topic_recommend_failed": "Video topic recommendations failed. Retry or search for existing topics.",
+      "topic_not_found": "A selected topic no longer matches. Search and select it again. The work was not submitted.",
+      "topics_changed": "The topic selection changed. Refresh the job and confirm again.",
+      "topics_unverified": "Topic binding could not be verified. Submission was blocked. Reselect topics and check the account."
+    },
+    "topics": {
+      "title": "Topics ({count}/5 selected)",
+      "hint": "Choose existing platform topics or explicitly add a custom topic. Up to 5.",
+      "keyword": "Topic keyword",
+      "search": "Search topics",
+      "selected": "Selected topics",
+      "none": "No topics selected",
+      "remove": "Remove topic {name}",
+      "custom": "Custom",
+      "addCustom": "Add custom topic #{name}",
+      "views": "{count} views",
+      "noResults": "No matching existing topics found.",
+      "recommendations": "Platform recommendations for this video",
+      "noRecommendations": "The platform returned no recommendations. You can search by keyword.",
+      "recommendHint": "After saving the video and checking the account, get video topic recommendations from its history entry.",
+      "edit": "Choose or edit topics",
+      "save": "Save topics",
+      "recommend": "Get video topic recommendations",
+      "recommendConfirm": "This uploads the video to a Douyin draft and reads native topic recommendations without publishing. The platform may keep the draft. Choose recommendations under “Choose or edit topics” when ready.",
+      "startRecommend": "Upload draft and get recommendations",
+      "recommendReady": "Recommendations are ready. Open “Choose or edit topics” to view them."
     }
   }
 }

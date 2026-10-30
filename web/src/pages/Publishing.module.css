@@ -11,4 +11,13 @@
 .meta { color: var(--text-muted); font-size: .875rem; }
 .notice { padding: var(--space-3); border-left: 3px solid var(--warning); background: var(--bg-inset); overflow-wrap: anywhere; }
 .confirm { overflow-wrap: anywhere; white-space: pre-wrap; }
+.topics { display: grid; gap: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius); padding: var(--space-4); min-width: 0; }
+.topics legend { padding: 0 var(--space-2); font-weight: 600; }
+.topics p { margin: 0; }
+.topicSearch { display: flex; align-items: end; gap: var(--space-3); }
+.topicSearch > :first-child { flex: 1; min-width: 0; }
+.topicChips { display: flex; flex-wrap: wrap; gap: var(--space-2); min-width: 0; }
+.topicChips button { white-space: normal; overflow-wrap: anywhere; }
+.recommendations { display: grid; gap: var(--space-2); border-top: 1px solid var(--border); padding-top: var(--space-3); }
+@media (max-width: 600px) { .topicSearch { align-items: stretch; flex-direction: column; } }
 @media (max-width: 600px) { .actions { align-items: stretch; } .actions button { flex: 1 1 auto; } }

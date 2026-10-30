@@ -12,6 +12,16 @@ The result is verified against a new matching work in the creator work list. Sub
 
 ## Session and failure handling
 
+### Topics
+
+Search native platform topics below the description and select up to five. Existing selections retain their platform ID. Custom topics require an explicit choice and use a null ID with source `new`. Saved drafts can edit topics; the final confirmation lists the selected topics.
+
+**Get video topic recommendations** requires explicit consent to upload the video into a platform draft. It reads native recommendations based on video frames and never clicks publish. The platform may retain the draft. Open the topic editor afterward to select recommendations; none are selected automatically.
+
+Before publication, the browser adapter verifies native topic IDs, names and UTF-16 text spans in the outgoing request. A mismatch blocks submission. A changed selection invalidates old confirmation. Publication that has already crossed the submission boundary still cannot be retried automatically.
+
+Additional administrator API calls: `POST /topics/search` with `account_id` and `keyword`; `PUT /jobs/{id}/topics` with `topics` and the current `revision`; and `POST /jobs/{id}/recommend` with `confirm_upload:true`. Poll the job for `recommended_topics`. Include its `topics_revision` in the publish confirmation. Each selected topic carries `id`, `name` and source `search`, `recommend` or `new`. Existing jobs and clients without topics remain compatible. Topic association does not guarantee recommendation traffic.
+
 Complete browser state is encrypted in the existing Vault. Older Cookie-only records still load. A login change invalidates an earlier confirmation; a stale browser cannot overwrite a newer scan. After checking or publishing, the console synchronizes the refreshed login into the collection identity. A failed sync can be retried independently.
 
 The final-click boundary is stored before clicking. A timeout or process restart after that point produces an **uncertain** result, never an automatic retry. Check the platform's work management before creating another publishing job. Additional platform verification stops the job.

@@ -10,24 +10,26 @@ import sqlite3
 import time
 from datetime import UTC, datetime
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import Field, field_validator
 
+from .topics import Topics
 from .vault import Vault
 
 MAX_VIDEO_BYTES = 1024 * 1024 * 1024
 MAX_STORAGE_BYTES = 10 * MAX_VIDEO_BYTES
-ACTIVE = {"checking", "uploading", "submitting"}
+ACTIVE = {"checking", "recommending", "uploading", "submitting"}
 TERMINAL = {"published", "failed", "uncertain", "cancelled"}
 
 
 class PublishProblem(Exception):
-    def __init__(self, code: str, status: int = 409):
+    def __init__(self, code: str, status: int = 409, *, submission_blocked=False):
         self.code = code
         self.status = status
+        self.submission_blocked = submission_blocked
         super().__init__(code)
 
 
-class NewJob(BaseModel):
+class NewJob(Topics):
     account_id: str = Field(pattern=r"^[a-f0-9]{32}$")
     client_key: str = Field(pattern=r"^[a-f0-9]{32}$")
     title: str = Field(min_length=1, max_length=30)
@@ -65,6 +67,7 @@ class PublishManager:
         self.root.mkdir(mode=0o700, exist_ok=True)
         self.database = self.root / "jobs.sqlite3"
         self.tasks: dict[str, asyncio.Task] = {}
+        self.searching_account = None
         with self.connect() as db:
             db.execute(
                 "CREATE TABLE IF NOT EXISTS jobs (id TEXT PRIMARY KEY, client_key TEXT UNIQUE NOT NULL, state TEXT NOT NULL, data TEXT NOT NULL)"
@@ -102,12 +105,21 @@ class PublishManager:
             row = db.execute("SELECT data FROM jobs WHERE id=?", (job_id,)).fetchone()
         if not row:
             raise KeyError(job_id)
-        return json.loads(row[0])
+        return self.decode(row[0])
+
+    @staticmethod
+    def decode(value):
+        job = json.loads(value)
+        job.setdefault("topics", [])
+        job.setdefault("topics_revision", "0" * 32)
+        job.setdefault("recommended_topics", [])
+        job.setdefault("recommendations_loaded", False)
+        return job
 
     def list(self, limit=None):
         with self.connect() as db:
             return [
-                json.loads(row[0])
+                self.decode(row[0])
                 for row in db.execute(
                     "SELECT data FROM jobs ORDER BY rowid DESC LIMIT ?", (-1 if limit is None else limit,)
                 )
@@ -119,7 +131,7 @@ class PublishManager:
             row = db.execute("SELECT data FROM jobs WHERE id=?", (job_id,)).fetchone()
             if not row:
                 raise KeyError(job_id)
-            job = json.loads(row[0])
+            job = self.decode(row[0])
             if expected is not None and job["state"] not in expected:
                 raise PublishProblem("state_changed")
             job.update(changes, updated_at=now())
@@ -142,7 +154,7 @@ class PublishManager:
             db.execute("BEGIN IMMEDIATE")
             previous = db.execute("SELECT data FROM jobs WHERE client_key=?", (body.client_key,)).fetchone()
             if previous:
-                job = json.loads(previous[0])
+                job = self.decode(previous[0])
                 if any(job[key] != value for key, value in body.model_dump().items()):
                     raise PublishProblem("idempotency_conflict")
                 return job
@@ -164,6 +176,9 @@ class PublishManager:
                 account_name="",
                 account_uid="",
                 account_revision="",
+                topics_revision=secrets.token_hex(16),
+                recommended_topics=[],
+                recommendations_loaded=False,
                 error_code=None,
                 post_id=None,
                 created_at=now(),
@@ -201,7 +216,7 @@ class PublishManager:
             raise
 
     def busy(self, account_id=None):
-        return any(
+        return (self.searching_account is not None and account_id in {None, self.searching_account}) or any(
             not task.done() and (account_id is None or self.get(key)["account_id"] == account_id)
             for key, task in self.tasks.items()
         )
@@ -215,11 +230,55 @@ class PublishManager:
         self.ensure_available(job["account_id"])
         if job["state"] not in {"uploaded", "ready", "failed"} or not self.video_path(job_id).is_file():
             raise PublishProblem("not_ready")
-        self.update(job_id, state="checking", error_code=None)
+        record = self.vault.export(job["account_id"])
+        changed = record["updated_at"] != job["account_revision"]
+        self.update(
+            job_id,
+            state="checking",
+            error_code=None,
+            **({"recommended_topics": [], "recommendations_loaded": False} if changed else {}),
+        )
         self.tasks[job_id] = asyncio.create_task(self._run(job_id, submit=False))
         return self.get(job_id)
 
-    def submit(self, job_id, account_id):
+    def set_topics(self, job_id, topics, revision):
+        chosen = Topics(topics=topics).model_dump()["topics"]
+        job = self.get(job_id)
+        if job["state"] not in {"awaiting_upload", "uploaded", "ready", "failed"}:
+            raise PublishProblem("not_ready")
+        if job["topics_revision"] != revision:
+            raise PublishProblem("topics_changed")
+        return self.update(job_id, topics=chosen, topics_revision=secrets.token_hex(16))
+
+    async def search_topics(self, account_id, keyword):
+        self.ensure_available(account_id)
+        record = self.vault.export(account_id)
+        if record.get("expires_at") and datetime.fromisoformat(record["expires_at"]) <= datetime.now(UTC):
+            raise PublishProblem("login_expired")
+        self.searching_account = account_id
+        try:
+            record["storage_state"] = self.vault.browser_state(account_id)
+            async with asyncio.timeout(90):
+                return await self.driver.search_topics(record, keyword)
+        except PublishProblem:
+            raise
+        except Exception:
+            raise PublishProblem("topic_search_failed", 503) from None
+        finally:
+            self.searching_account = None
+
+    def recommend(self, job_id):
+        job = self.get(job_id)
+        self.ensure_available(job["account_id"])
+        if job["state"] != "ready" or not self.video_path(job_id).is_file():
+            raise PublishProblem("not_ready")
+        self.update(
+            job_id, state="recommending", error_code=None, recommended_topics=[], recommendations_loaded=False
+        )
+        self.tasks[job_id] = asyncio.create_task(self._run(job_id, submit=False, recommend=True))
+        return self.get(job_id)
+
+    def submit(self, job_id, account_id, topics_revision=None):
         job = self.get(job_id)
         if job["account_id"] != account_id:
             raise PublishProblem("account_changed")
@@ -228,6 +287,8 @@ class PublishManager:
             return job
         if job["state"] != "ready":
             raise PublishProblem("not_ready")
+        if (job["topics"] or topics_revision is not None) and topics_revision != job["topics_revision"]:
+            raise PublishProblem("topics_changed")
         self.ensure_available(account_id)
         record = self.vault.export(account_id)
         if record["updated_at"] != job["account_revision"]:
@@ -238,20 +299,22 @@ class PublishManager:
         self.tasks[job_id] = asyncio.create_task(self._run(job_id, submit=True))
         return self.get(job_id)
 
-    async def _run(self, job_id, *, submit):
+    async def _run(self, job_id, *, submit, recommend=False):
         job = self.get(job_id)
         try:
             record = self.vault.export(job["account_id"])
             if record.get("expires_at") and datetime.fromisoformat(record["expires_at"]) <= datetime.now(UTC):
                 raise PublishProblem("login_expired")
-            if submit and record["updated_at"] != job["account_revision"]:
+            if (submit or recommend) and record["updated_at"] != job["account_revision"]:
                 raise PublishProblem("account_changed")
             record["storage_state"] = self.vault.browser_state(job["account_id"])
-            async with asyncio.timeout(900 if submit else 90):
+            async with asyncio.timeout(900 if submit or recommend else 90):
                 if submit:
                     result = await self.driver.publish(
                         record, job, self.video_path(job_id), lambda: self.update(job_id, state="submitting")
                     )
+                elif recommend:
+                    result = await self.driver.recommend(record, job, self.video_path(job_id))
                 else:
                     result = await self.driver.check(record)
             saved = self.vault.update_browser_state(
@@ -274,10 +337,17 @@ class PublishManager:
                     account_name=result["nickname"],
                     account_uid=result["uid"],
                     checked_at=now(),
+                    **(
+                        {"recommended_topics": result["recommendations"], "recommendations_loaded": True}
+                        if recommend
+                        else {}
+                    ),
                 )
         except BaseException as error:
             current = self.get(job_id)
-            uncertain = current["state"] == "submitting"
+            uncertain = current["state"] == "submitting" and not (
+                isinstance(error, PublishProblem) and error.submission_blocked
+            )
             self.update(
                 job_id,
                 state="uncertain" if uncertain else "failed",

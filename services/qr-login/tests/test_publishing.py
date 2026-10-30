@@ -148,3 +148,102 @@ async def test_restart_during_final_submission_preserves_uncertainty(tmp_path):
     assert restarted.get(job["id"])["state"] == "uncertain"
     restarted.submit(job["id"], account["id"])
     assert restarted.driver.sent == 0
+
+
+@pytest.mark.asyncio
+async def test_changing_topics_invalidates_an_old_confirmation_and_survives_restart(tmp_path):
+    manager, account = setup(tmp_path)
+    job = await ready(manager, account)
+    old_revision = job["topics_revision"]
+    chosen = [{"id": "123", "name": "美食", "source": "search"}]
+    updated = manager.set_topics(job["id"], chosen, old_revision)
+    assert updated["topics"] == chosen
+    assert updated["topics_revision"] != old_revision
+    assert PublishManager(manager.vault, Driver()).get(job["id"])["topics"] == chosen
+    with pytest.raises(PublishProblem, match="topics_changed"):
+        manager.submit(job["id"], account["id"], old_revision)
+    with pytest.raises(PublishProblem, match="topics_changed"):
+        manager.set_topics(job["id"], [], old_revision)
+    manager.submit(job["id"], account["id"], updated["topics_revision"])
+    with pytest.raises(PublishProblem):
+        manager.set_topics(job["id"], [], updated["topics_revision"])
+    await manager.wait()
+    assert manager.driver.sent == 1
+
+
+@pytest.mark.asyncio
+async def test_native_recommendations_are_persisted_without_publishing(tmp_path):
+    class WithRecommendations(Driver):
+        async def recommend(self, record, job, path):
+            assert path.is_file()
+            return {
+                **await self.check(record),
+                "recommendations": [{"id": "123", "name": "美食", "source": "recommend", "views": 42}],
+            }
+
+    driver = WithRecommendations()
+    manager, account = setup(tmp_path, driver)
+    job = await ready(manager, account)
+    assert manager.recommend(job["id"])["state"] == "recommending"
+    await manager.wait()
+    result = manager.get(job["id"])
+    assert result["state"] == "ready"
+    assert result["recommended_topics"][0]["id"] == "123"
+    assert result["topics"] == []  # Recommendations are not silently selected.
+    assert result["recommendations_loaded"] is True
+    assert driver.sent == 0
+
+
+@pytest.mark.asyncio
+async def test_old_job_records_still_load_with_empty_topic_defaults(tmp_path):
+    manager, account = setup(tmp_path)
+    job = await ready(manager, account)
+    for key in ["topics", "topics_revision", "recommended_topics", "recommendations_loaded"]:
+        job.pop(key, None)
+    with manager.connect() as db:
+        db.execute("UPDATE jobs SET data=? WHERE id=?", (json.dumps(job), job["id"]))
+    restored = manager.get(job["id"])
+    assert restored["topics"] == []
+    assert restored["recommended_topics"] == []
+    manager.submit(job["id"], account["id"])
+    await manager.wait()
+    assert manager.driver.sent == 1
+
+
+@pytest.mark.asyncio
+async def test_blocked_topic_request_remains_retryable_without_ambiguous_submission(tmp_path):
+    class Blocked(Driver):
+        async def publish(self, record, job, path, on_submitting):
+            on_submitting()
+            raise PublishProblem("topics_unverified", submission_blocked=True)
+
+    driver = Blocked()
+    manager, account = setup(tmp_path, driver)
+    job = await ready(manager, account)
+    manager.submit(job["id"], account["id"])
+    await manager.wait()
+    result = manager.get(job["id"])
+    assert result["state"] == "failed"
+    assert result["error_code"] == "topics_unverified"
+    assert manager.video_path(job["id"]).is_file()
+    assert driver.sent == 0
+    manager.prepare(job["id"])
+    await manager.wait()
+    assert manager.get(job["id"])["state"] == "ready"
+
+
+@pytest.mark.asyncio
+async def test_renewed_account_clears_old_video_recommendations(tmp_path):
+    manager, account = setup(tmp_path)
+    job = await ready(manager, account)
+    manager.update(
+        job["id"],
+        recommended_topics=[{"id": "123", "name": "Food", "source": "recommend"}],
+        recommendations_loaded=True,
+    )
+    manager.vault.save(cookies(), {"user_agent": "Chrome/156"}, "renewed", account["id"])
+    manager.prepare(job["id"])
+    await manager.wait()
+    restored = manager.get(job["id"])
+    assert restored["recommended_topics"] == []
+    assert restored["recommendations_loaded"] is False

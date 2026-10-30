@@ -2898,7 +2898,8 @@
       "published": "已提交，等待平台审核",
       "failed": "未完成",
       "uncertain": "结果待核实，请勿重复发布",
-      "cancelled": "已清理本机草稿"
+      "cancelled": "已清理本机草稿",
+      "recommending": "正在处理视频并获取推荐话题"
     },
     "errors": {
       "unavailable": "暂时无法完成操作，请刷新查看任务状态后再处理。",
@@ -2923,7 +2924,34 @@
       "result_unavailable": "暂时无法核对作品管理列表。",
       "idempotency_conflict": "该上传标识已用于其他视频，请重新创建草稿。",
       "state_changed": "任务状态已经变化，请刷新后查看。",
-      "draft_expired": "本机草稿超过一天，素材已清理。"
+      "draft_expired": "本机草稿超过一天，素材已清理。",
+      "topic_search_failed": "话题搜索暂时不可用，请稍后重试。",
+      "topic_recommend_failed": "未能获取视频推荐话题，可以重新尝试或搜索已有话题。",
+      "topic_not_found": "所选话题已无法匹配，请重新搜索选择；作品尚未提交。",
+      "topics_changed": "话题选择已变化，请刷新记录并重新确认。",
+      "topics_unverified": "话题关联校验未通过，已阻止本次提交。请重新选择话题并检查账号。"
+    },
+    "topics": {
+      "title": "话题（已选 {count}/5）",
+      "hint": "从平台候选中选择已有话题，或明确添加自定义话题。最多 5 个。",
+      "keyword": "话题关键词",
+      "search": "搜索话题",
+      "selected": "已选话题",
+      "none": "未选择话题",
+      "remove": "移除话题 {name}",
+      "custom": "自定义",
+      "addCustom": "添加自定义话题 #{name}",
+      "views": "{count} 次浏览",
+      "noResults": "没有找到匹配的已有话题。",
+      "recommendations": "来自当前视频的推荐话题",
+      "noRecommendations": "平台没有返回推荐话题，可以使用关键词搜索。",
+      "recommendHint": "保存视频并检查账号后，可在发布记录中获取视频推荐话题。",
+      "edit": "选择或编辑话题",
+      "save": "保存话题",
+      "recommend": "获取视频推荐话题",
+      "recommendConfirm": "这会将该视频上传至抖音草稿并读取原生推荐话题，不会发布作品。平台可能保存该草稿；完成后可在“选择或编辑话题”中选用推荐。",
+      "startRecommend": "上传草稿并获取推荐",
+      "recommendReady": "视频推荐已获取，请在“选择或编辑话题”中查看。"
     }
   }
 }

@@ -38,6 +38,9 @@ export const paths = {
   publishing: {
     root: `${API_V1}/admin/publishing`,
     jobs: `${API_V1}/admin/publishing/jobs`,
+    topicSearch: `${API_V1}/admin/publishing/topics/search`,
+    topics: (id: string) => `${API_V1}/admin/publishing/jobs/${encodeURIComponent(id)}/topics`,
+    recommend: (id: string) => `${API_V1}/admin/publishing/jobs/${encodeURIComponent(id)}/recommend`,
     job: (id: string) => `${API_V1}/admin/publishing/jobs/${encodeURIComponent(id)}`,
     video: (id: string) => `${API_V1}/admin/publishing/jobs/${encodeURIComponent(id)}/video`,
     prepare: (id: string) => `${API_V1}/admin/publishing/jobs/${encodeURIComponent(id)}/prepare`,
