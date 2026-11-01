@@ -1,5 +1,5 @@
 # Local extension of the already installed release; dependencies are unchanged.
-FROM evil0ctal/douyin_tiktok_download_api:5.1.7
+FROM evil0ctal/douyin_tiktok_download_api:5.1.8
 COPY --chown=root:root src/dtk /app/local-src/dtk
 COPY --chown=root:root web/dist /app/web/dist
 ENV PYTHONPATH=/app/local-src
