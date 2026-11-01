@@ -8,7 +8,7 @@ COPY web/ ./
 RUN npm run build
 
 # The extension uses the upstream 5.1.7 dependency set without changing it.
-FROM evil0ctal/douyin_tiktok_download_api:5.1.7
+FROM evil0ctal/douyin_tiktok_download_api:5.1.8
 COPY --chown=root:root src/dtk /app/local-src/dtk
 COPY --from=console --chown=root:root /build/dist /app/web/dist
 COPY --chown=root:root LICENSE NOTICE /app/
